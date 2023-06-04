@@ -30,7 +30,7 @@ function getRandClues(clues, count) {
     value: clue.value,
   }));
 }
-
+const API_BASE_URL = "https://jservice.io/api/";
 let categories = [];
 /** Get NUM_CATEGORIES random category from API.
  *
@@ -39,17 +39,24 @@ let categories = [];
 async function getCategoryIds() {
   const totalCats = 28163;
   const catIds = new Set();
-  while (catIds.size < 6) {
-    const offset = _.random(0, totalCats - 1);
-    const response = await axios.get(
-      `https://jservice.io/api/categories?count=100&offset=${offset}`
-    );
-    const newIds = response.data.map((category) => category.id);
-    newIds.forEach((id) => catIds.add(id));
-  }
-  return Array.from(catIds).slice(0, 6);
-}
+  const numCatsToFetch = 6;
 
+  while (catIds.size < numCatsToFetch) {
+    const offset = _.random(0, totalCats - 1);
+    const response = await axios({
+      method: "get",
+      url: `${API_BASE_URL}categories`,
+      params: {
+        count: 1,
+        offset: offset,
+      },
+    });
+    const catId = response.data[0].id;
+    catIds.add(catId);
+  }
+
+  return Array.from(catIds);
+}
 /** Return object with data about a category:
  *
  *  Returns { title: "Math", clues: clue-array }
@@ -62,14 +69,26 @@ async function getCategoryIds() {
  *   ]
  */
 async function getCategory(catId) {
-  const response = await axios.get(
-    `https://jservice.io/api/category?id=${catId}`
-  );
+  const response = await axios({
+    method: "get",
+    url: `${API_BASE_URL}category`,
+    params: { id: catId },
+  });
   const catData = response.data;
+  const filteredClues = catData.clues.filter((clue) => {
+    return clue.answer.trim() !== "" && clue.question.trim() !== "=";
+  });
   const cat = {
     title: catData.title,
-    clues: getRandClues(catData.clues, 2), // Change the number of clues to display here
+    clues: getRandClues(filteredClues, 2),
   };
+
+  cat.clues.forEach((clue) => {
+    const fixedAnswer = clue.answer
+      .replace(/<\/?[^>]+(>|$)/g, "")
+      .replace(/[^\w\s]/gi, "");
+    clue.answer = fixedAnswer;
+  });
   return cat;
 }
 
@@ -114,11 +133,9 @@ async function fillTable() {
  */
 function handleClick(evt) {
   const $cell = $(evt.target);
-  const categoryIndex = $cell.index();
-  console.log(categoryIndex);
-  const clueIndex = $cell.closest("tr").index();
-  console.log(clueIndex);
-  const clue = categories[categoryIndex].clues[clueIndex];
+  const catIdx = $cell.index();
+  const clueIdx = $cell.closest("tr").index();
+  const clue = categories[catIdx].clues[clueIdx];
 
   if (clue.showing === null) {
     // Show the question
@@ -157,8 +174,8 @@ async function setupAndStart() {
   showLoadingView();
 
   try {
-    const categoryIds = await getCategoryIds();
-    categories = await Promise.all(categoryIds.map(getCategory));
+    const catIds = await getCategoryIds();
+    categories = await Promise.all(catIds.map(getCategory));
     fillTable();
   } catch (error) {
     console.error(error);
