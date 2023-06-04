@@ -68,7 +68,7 @@ async function getCategory(catId) {
   const catData = response.data;
   const cat = {
     title: catData.title,
-    clues: getRandClues(catData.clues, 5), // Change the number of clues to display here
+    clues: getRandClues(catData.clues, 2), // Change the number of clues to display here
   };
   return cat;
 }
@@ -92,13 +92,12 @@ async function fillTable() {
   $headerRow.appendTo($thead);
   $thead.appendTo($table);
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 2; i++) {
     const $bodyRow = $("<tr>");
-    categories.forEach((category, categoryIndex) => {
+    categories.forEach((category) => {
       const clue = category.clues[i];
       const value = clue.value || 100;
-      const $bodyCell = $("<td>").text(value).appendTo($bodyRow);
-      $bodyCell.on("click", () => handleClick(categoryIndex, i, $bodyCell));
+      $("<td>").text(value).appendTo($bodyRow);
     });
     $bodyRow.appendTo($tbody);
   }
@@ -116,7 +115,9 @@ async function fillTable() {
 function handleClick(evt) {
   const $cell = $(evt.target);
   const categoryIndex = $cell.index();
+  console.log(categoryIndex);
   const clueIndex = $cell.closest("tr").index();
+  console.log(clueIndex);
   const clue = categories[categoryIndex].clues[clueIndex];
 
   if (clue.showing === null) {
