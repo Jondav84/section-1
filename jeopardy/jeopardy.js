@@ -4,6 +4,7 @@ const API_BASE_URL = "http://jservice.io/api/";
 const NUM_OF_IDS = 28163;
 const $jeopardy = $("#jeopardy");
 let categories = [];
+let gameOver = false;
 
 async function getCategoryIds() {
   const catIds = [];
@@ -42,11 +43,11 @@ async function getCategory(catIds) {
     const clues = shuffled_clues.slice(0, 2);
     clues.forEach((clue) => {
       const fixedAnswer = clue.answer
-        .replace(/<\/?[^>]+(>|$)/g, "")
-        .replace(/[^\w\s]/g, "");
+        .replace(/<\/?[^>']+(>|$)/g, "")
+        .replace(/[^\w\s']/g, "");
       const fixedQuestion = clue.question
-        .replace(/<\/?[^>]+(>|$)/g, "")
-        .replace(/[^\w\s]/g, "");
+        .replace(/<\/?[^>']+(>|$)/g, "")
+        .replace(/[^\w\s']/g, "");
       categories.push({
         category: res.data.title,
         question: fixedQuestion,
@@ -57,9 +58,9 @@ async function getCategory(catIds) {
 }
 
 async function fillCard() {
+  showGameArea();
   const $card = $("<div>").addClass("card");
   $card.appendTo($jeopardy);
-
   const $cardTop = $("<div>")
     .addClass("card-top")
     .attr("id", "top")
@@ -72,40 +73,54 @@ async function fillCard() {
     .addClass("card-bottom")
     .attr("id", "bottom")
     .text("?");
-
   $card.append($cardTop);
   $card.append($cardBody);
   $card.append($cardBottom);
+}
+function showGameArea() {
+  $jeopardy.show();
+}
+
+function hideGameArea() {
+  $jeopardy.hide();
+}
+
+function hideHeader() {
+  $("header").hide();
+}
+function showHeader() {
+  $("header").show();
 }
 
 function handleClick() {
   const top = $("#top");
   const body = $("#body");
   const bottom = $("#bottom");
+
   if (bottom.text() === "?") {
     bottom.text(categories[0].answer).css("color", "red");
   } else if (bottom.text() === categories[0].answer) {
     categories.shift();
     if (categories.length === 0) {
       $jeopardy.empty();
-      alert("Game Over, Pealse Reload!");
-      return;
+      alert("Game Over! Please start a new game");
+      showHeader();
+      gameOver = true;
+      $(document).off("click", ".card", handleClick); // Unbind click event
+    } else {
+      top.text(categories[0].category);
+      body.text(categories[0].question);
+      bottom.text("?").css("color", "white");
     }
-    top.text(categories[0].category);
-    body.text(categories[0].question);
-    bottom.text("?").css("color", "white");
   }
 }
 
 function showLoadingView() {
-  $("#jeopardy").empty();
-  $("#spin-container").appendTo("#jeopardy").show();
-  $("#start").prop("disabled", true);
+  $("#spin-container").appendTo("body").show();
 }
 
 function hideLoadingView() {
   $("#spin-container").hide();
-  $("#start").prop("disabled", false);
 }
 
 async function setupAndStart() {
@@ -114,15 +129,18 @@ async function setupAndStart() {
   const catIds = await getCategoryIds();
   await getCategory(catIds);
   categories = _.shuffle(categories);
-  fillCard();
   hideLoadingView();
+  gameOver = false;
+  $(document).on("click", ".card", handleClick); // Bind click event
+  fillCard();
 }
 
 $("#start").on("click", () => {
+  hideHeader();
   setupAndStart();
 });
 
 $(document).ready(function () {
   hideLoadingView();
-  $(document).on("click", ".card", handleClick);
+  hideGameArea();
 });
